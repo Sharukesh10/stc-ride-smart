@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Clock, IndianRupee } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const plans = [
   { id: "30min", duration: "30 Minutes", price: 20 },
@@ -15,8 +18,69 @@ const plans = [
 
 const Booking = () => {
   const [selectedPlan, setSelectedPlan] = useState("1hr");
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const booth = location.state?.booth;
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+    if (!booth) {
+      navigate("/map");
+    }
+  }, [user, booth, navigate]);
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
+
+  const handlePayment = async () => {
+    if (!user || !booth) return;
+    
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from("bookings")
+        .insert({
+          user_id: user.id,
+          booth_id: booth.id,
+          plan_duration: selectedPlan,
+          price: selectedPlanData?.price,
+          status: "pending",
+          qr_code: `STC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Booking Created!",
+        description: "Payment integration will be added next. For now, your booking is pending.",
+      });
+
+      // In production, this would redirect to payment gateway
+      // For now, just show success
+      setTimeout(() => {
+        navigate("/map");
+      }, 2000);
+
+    } catch (error: any) {
+      toast({
+        title: "Booking Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!booth) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,7 +133,7 @@ const Booking = () => {
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Booth</span>
-                <span className="font-medium">Main Campus Gate</span>
+                <span className="font-medium">{booth.name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Duration</span>
@@ -77,7 +141,7 @@ const Booking = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Available Bikes</span>
-                <span className="font-medium">12 bikes</span>
+                <span className="font-medium">{booth.available_bikes} bikes</span>
               </div>
               <div className="border-t pt-3 flex justify-between text-lg font-bold">
                 <span>Total Amount</span>
@@ -88,14 +152,19 @@ const Booking = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" size="lg">
-                Proceed to Payment
+              <Button 
+                className="w-full" 
+                size="lg" 
+                onClick={handlePayment}
+                disabled={loading}
+              >
+                {loading ? "Creating Booking..." : "Proceed to Payment"}
               </Button>
             </CardFooter>
           </Card>
 
           <p className="text-sm text-muted-foreground text-center">
-            Payment gateway integration (Razorpay/UPI) will be added with backend
+            Payment gateway integration (Razorpay/UPI) will be added next
           </p>
         </div>
       </div>

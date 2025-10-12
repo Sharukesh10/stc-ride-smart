@@ -1,20 +1,86 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Bike, ArrowLeft } from "lucide-react";
+import { MapPin, Navigation, Bike, ArrowLeft, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock booth data
-const mockBooths = [
-  { id: 1, name: "Main Campus Gate", bikes: 12, distance: "0.5 km", lat: 28.6139, lng: 77.2090 },
-  { id: 2, name: "Library Block", bikes: 8, distance: "0.8 km", lat: 28.6149, lng: 77.2095 },
-  { id: 3, name: "Cafeteria", bikes: 15, distance: "1.2 km", lat: 28.6129, lng: 77.2100 },
-  { id: 4, name: "Sports Complex", bikes: 5, distance: "1.5 km", lat: 28.6119, lng: 77.2085 },
-];
+interface Booth {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  available_bikes: number;
+  total_capacity: number;
+  status: string;
+}
 
 const Map = () => {
-  const [selectedBooth, setSelectedBooth] = useState<typeof mockBooths[0] | null>(null);
+  const [booths, setBooths] = useState<Booth[]>([]);
+  const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    fetchBooths();
+  }, [user, navigate]);
+
+  const fetchBooths = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("booths")
+        .select("*")
+        .eq("status", "active")
+        .order("name");
+
+      if (error) throw error;
+      setBooths(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load booths",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const handleSelectBooth = (booth: Booth) => {
+    setSelectedBooth(booth);
+    if (booth.available_bikes > 0) {
+      navigate("/booking", { state: { booth } });
+    } else {
+      toast({
+        title: "No bikes available",
+        description: "Please select another booth",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p>Loading booths...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -25,10 +91,16 @@ const Map = () => {
             <ArrowLeft className="w-5 h-5" />
             <span className="font-semibold">STC</span>
           </Link>
-          <Button variant="outline" size="sm">
-            <Navigation className="w-4 h-4 mr-2" />
-            My Location
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Navigation className="w-4 h-4 mr-2" />
+              My Location
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -39,11 +111,11 @@ const Map = () => {
             <div>
               <h2 className="text-2xl font-bold mb-2">Nearby Booths</h2>
               <p className="text-sm text-muted-foreground">
-                {mockBooths.length} stations available
+                {booths.length} stations available
               </p>
             </div>
 
-            {mockBooths.map((booth) => (
+            {booths.map((booth) => (
               <Card
                 key={booth.id}
                 className={`cursor-pointer transition-all hover:shadow-lg ${
@@ -57,18 +129,23 @@ const Map = () => {
                       <CardTitle className="text-lg">{booth.name}</CardTitle>
                       <CardDescription className="flex items-center gap-1 mt-1">
                         <MapPin className="w-3 h-3" />
-                        {booth.distance}
+                        {(Math.random() * 2).toFixed(1)} km
                       </CardDescription>
                     </div>
-                    <Badge variant={booth.bikes > 10 ? "default" : booth.bikes > 5 ? "secondary" : "destructive"}>
-                      {booth.bikes} bikes
+                    <Badge variant={booth.available_bikes > 10 ? "default" : booth.available_bikes > 5 ? "secondary" : "destructive"}>
+                      {booth.available_bikes} bikes
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full" size="sm">
+                  <Button 
+                    className="w-full" 
+                    size="sm"
+                    onClick={() => handleSelectBooth(booth)}
+                    disabled={booth.available_bikes === 0}
+                  >
                     <Bike className="w-4 h-4 mr-2" />
-                    Select Booth
+                    {booth.available_bikes > 0 ? "Select Booth" : "No Bikes"}
                   </Button>
                 </CardContent>
               </Card>
@@ -94,12 +171,16 @@ const Map = () => {
                   <CardHeader>
                     <CardTitle>{selectedBooth.name}</CardTitle>
                     <CardDescription>
-                      {selectedBooth.bikes} bikes available • {selectedBooth.distance} away
+                      {selectedBooth.available_bikes} bikes available
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full" asChild>
-                      <Link to="/booking">Rent a Bike</Link>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleSelectBooth(selectedBooth)}
+                      disabled={selectedBooth.available_bikes === 0}
+                    >
+                      Rent a Bike
                     </Button>
                   </CardContent>
                 </Card>
