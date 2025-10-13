@@ -4,41 +4,103 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Clock, IndianRupee } from "lucide-react";
+import { ArrowLeft, MapPin, IndianRupee } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const plans = [
-  { id: "30min", duration: "30 Minutes", price: 20 },
-  { id: "1hr", duration: "1 Hour", price: 35 },
-  { id: "2hr", duration: "2 Hours", price: 60 },
-  { id: "4hr", duration: "4 Hours", price: 100 },
-];
+interface Booth {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  available_bikes: number;
+  total_capacity: number;
+  status: string;
+}
+
+// Base price per km
+const PRICE_PER_KM = 10;
 
 const Booking = () => {
-  const [selectedPlan, setSelectedPlan] = useState("1hr");
+  const [selectedDropBooth, setSelectedDropBooth] = useState<string>("");
+  const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   
-  const booth = location.state?.booth;
+  const pickupBooth = location.state?.booth as Booth;
 
   useEffect(() => {
     if (!user) {
       navigate("/auth");
+      return;
     }
-    if (!booth) {
+    if (!pickupBooth) {
       navigate("/map");
+      return;
     }
-  }, [user, booth, navigate]);
+    
+    fetchBooths();
+  }, [user, pickupBooth, navigate]);
 
-  const selectedPlanData = plans.find(p => p.id === selectedPlan);
+  const fetchBooths = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("booths")
+        .select("*")
+        .eq("status", "active")
+        .neq("id", pickupBooth.id)
+        .order("name");
+
+      if (error) throw error;
+      setBooths(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load drop booths",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    // Haversine formula to calculate distance between two coordinates
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  const selectedDropBoothData = booths.find(b => b.id === selectedDropBooth);
+  
+  const distance = selectedDropBoothData 
+    ? calculateDistance(
+        pickupBooth.latitude,
+        pickupBooth.longitude,
+        selectedDropBoothData.latitude,
+        selectedDropBoothData.longitude
+      )
+    : 0;
+
+  const calculatedPrice = Math.ceil(distance * PRICE_PER_KM);
 
   const handlePayment = async () => {
-    if (!user || !booth) return;
+    if (!user || !pickupBooth || !selectedDropBooth) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a drop booth",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
     
@@ -47,9 +109,9 @@ const Booking = () => {
         .from("bookings")
         .insert({
           user_id: user.id,
-          booth_id: booth.id,
-          plan_duration: selectedPlan,
-          price: selectedPlanData?.price,
+          pickup_booth_id: pickupBooth.id,
+          drop_booth_id: selectedDropBooth,
+          price: calculatedPrice,
           status: "pending",
           qr_code: `STC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         })
@@ -80,7 +142,7 @@ const Booking = () => {
     }
   };
 
-  if (!booth) return null;
+  if (!pickupBooth) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,28 +158,36 @@ const Booking = () => {
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Choose Your Plan</h1>
-            <p className="text-muted-foreground">Select rental duration and proceed to payment</p>
+            <h1 className="text-3xl font-bold mb-2">Choose Drop Location</h1>
+            <p className="text-muted-foreground">Select where you want to drop the bike</p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Rental Plans</CardTitle>
-              <CardDescription>Pick the duration that suits your journey</CardDescription>
+              <CardTitle>Pickup Location</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="space-y-3">
-                {plans.map((plan) => (
-                  <div key={plan.id} className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value={plan.id} id={plan.id} />
-                    <Label htmlFor={plan.id} className="flex-1 cursor-pointer flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-primary" />
+                <span className="font-medium">{pickupBooth.name}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Drop Location</CardTitle>
+              <CardDescription>Select your destination booth</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup value={selectedDropBooth} onValueChange={setSelectedDropBooth} className="space-y-3">
+                {booths.map((booth) => (
+                  <div key={booth.id} className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value={booth.id} id={booth.id} />
+                    <Label htmlFor={booth.id} className="flex-1 cursor-pointer">
                       <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">{plan.duration}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-lg font-semibold">
-                        <IndianRupee className="w-4 h-4" />
-                        {plan.price}
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">{booth.name}</span>
                       </div>
                     </Label>
                   </div>
@@ -132,22 +202,26 @@ const Booking = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Booth</span>
-                <span className="font-medium">{booth.name}</span>
+                <span className="text-muted-foreground">Pickup Booth</span>
+                <span className="font-medium">{pickupBooth.name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Duration</span>
-                <span className="font-medium">{selectedPlanData?.duration}</span>
+                <span className="text-muted-foreground">Drop Booth</span>
+                <span className="font-medium">{selectedDropBoothData?.name || "Not selected"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Distance</span>
+                <span className="font-medium">{distance > 0 ? `${distance.toFixed(1)} km` : "-"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Available Bikes</span>
-                <span className="font-medium">{booth.available_bikes} bikes</span>
+                <span className="font-medium">{pickupBooth.available_bikes} bikes</span>
               </div>
               <div className="border-t pt-3 flex justify-between text-lg font-bold">
                 <span>Total Amount</span>
                 <div className="flex items-center gap-1">
                   <IndianRupee className="w-5 h-5" />
-                  {selectedPlanData?.price}
+                  {calculatedPrice > 0 ? calculatedPrice : "-"}
                 </div>
               </div>
             </CardContent>
@@ -156,7 +230,7 @@ const Booking = () => {
                 className="w-full" 
                 size="lg" 
                 onClick={handlePayment}
-                disabled={loading}
+                disabled={loading || !selectedDropBooth}
               >
                 {loading ? "Creating Booking..." : "Proceed to Payment"}
               </Button>

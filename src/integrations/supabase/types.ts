@@ -16,11 +16,11 @@ export type Database = {
     Tables: {
       bookings: {
         Row: {
-          booth_id: string
           created_at: string
+          drop_booth_id: string
           ended_at: string | null
           id: string
-          plan_duration: string
+          pickup_booth_id: string
           price: number
           qr_code: string | null
           started_at: string | null
@@ -29,11 +29,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          booth_id: string
           created_at?: string
+          drop_booth_id: string
           ended_at?: string | null
           id?: string
-          plan_duration: string
+          pickup_booth_id: string
           price: number
           qr_code?: string | null
           started_at?: string | null
@@ -42,11 +42,11 @@ export type Database = {
           user_id: string
         }
         Update: {
-          booth_id?: string
           created_at?: string
+          drop_booth_id?: string
           ended_at?: string | null
           id?: string
-          plan_duration?: string
+          pickup_booth_id?: string
           price?: number
           qr_code?: string | null
           started_at?: string | null
@@ -57,7 +57,14 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bookings_booth_id_fkey"
-            columns: ["booth_id"]
+            columns: ["pickup_booth_id"]
+            isOneToOne: false
+            referencedRelation: "booths"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_drop_booth_id_fkey"
+            columns: ["drop_booth_id"]
             isOneToOne: false
             referencedRelation: "booths"
             referencedColumns: ["id"]
