@@ -7,6 +7,7 @@ import { MapPin, Navigation, Bike, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import MapView from "@/components/MapView";
 
 interface Booth {
   id: string;
@@ -155,38 +156,11 @@ const Map = () => {
 
         {/* Map Area */}
         <div className="lg:col-span-2 relative">
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
-            <div className="text-center space-y-4 p-8">
-              <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                <MapPin className="w-10 h-10 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Interactive Map</h3>
-                <p className="text-muted-foreground max-w-md">
-                  Google Maps integration will show booth locations and navigation here
-                </p>
-              </div>
-              {selectedBooth && (
-                <Card className="max-w-sm mx-auto">
-                  <CardHeader>
-                    <CardTitle>{selectedBooth.name}</CardTitle>
-                    <CardDescription>
-                      {selectedBooth.available_bikes} bikes available
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button 
-                      className="w-full" 
-                      onClick={() => handleSelectBooth(selectedBooth)}
-                      disabled={selectedBooth.available_bikes === 0}
-                    >
-                      Rent a Bike
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
+          <MapView 
+            booths={booths}
+            selectedBooth={selectedBooth}
+            onSelectBooth={handleSelectBooth}
+          />
         </div>
       </div>
     </div>
