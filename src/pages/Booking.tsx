@@ -90,7 +90,7 @@ const Booking = () => {
       )
     : 0;
 
-  const calculatedPrice = Math.ceil(distance * PRICE_PER_KM);
+  const calculatedPrice = Math.min(Math.max(Math.ceil(distance * PRICE_PER_KM), 10), 20);
 
   const handlePayment = async () => {
     if (!user || !pickupBooth || !selectedDropBooth) {
