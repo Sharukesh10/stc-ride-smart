@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
@@ -30,22 +30,18 @@ interface MapViewProps {
   onSelectBooth: (booth: Booth) => void;
 }
 
-function MapUpdater({ selectedBooth }: { selectedBooth: Booth | null }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (selectedBooth) {
-      map.setView([selectedBooth.latitude, selectedBooth.longitude], 15);
-    }
-  }, [selectedBooth, map]);
-  
-  return null;
-}
-
 const MapView = ({ booths, selectedBooth, onSelectBooth }: MapViewProps) => {
+  const mapRef = useRef<L.Map | null>(null);
+  
   const center: [number, number] = booths.length > 0 
     ? [booths[0].latitude, booths[0].longitude]
     : [28.6139, 77.2090]; // Default center
+
+  useEffect(() => {
+    if (mapRef.current && selectedBooth) {
+      mapRef.current.setView([selectedBooth.latitude, selectedBooth.longitude], 15);
+    }
+  }, [selectedBooth]);
 
   return (
     <MapContainer
@@ -53,12 +49,12 @@ const MapView = ({ booths, selectedBooth, onSelectBooth }: MapViewProps) => {
       zoom={13}
       className="w-full h-full"
       style={{ minHeight: '400px' }}
+      ref={mapRef}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapUpdater selectedBooth={selectedBooth} />
       {booths.map((booth) => (
         <Marker
           key={booth.id}
