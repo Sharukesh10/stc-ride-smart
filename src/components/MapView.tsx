@@ -1,8 +1,18 @@
 import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Bike, MapPin } from 'lucide-react';
+import { Bike } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+// Fix default marker icon
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 interface Booth {
   id: string;
@@ -22,63 +32,62 @@ interface MapViewProps {
 
 const MapView = ({ booths, selectedBooth, onSelectBooth }: MapViewProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
   
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Initialize Leaflet dynamically
-    const initMap = async () => {
-      const L = (await import('leaflet')).default;
-      await import('leaflet/dist/leaflet.css');
+    const center: [number, number] = booths.length > 0 
+      ? [booths[0].latitude, booths[0].longitude]
+      : [28.6139, 77.2090];
 
-      // Fix default marker icon
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      });
+    const map = L.map(mapRef.current).setView(center, 13);
+    mapInstanceRef.current = map;
 
-      const center: [number, number] = booths.length > 0 
-        ? [booths[0].latitude, booths[0].longitude]
-        : [28.6139, 77.2090];
-
-      const map = L.map(mapRef.current).setView(center, 13);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map);
-
-      // Add markers for each booth
-      booths.forEach((booth) => {
-        const marker = L.marker([booth.latitude, booth.longitude])
-          .addTo(map)
-          .bindPopup(`
-            <div style="min-width: 200px;">
-              <h3 style="font-weight: 600; font-size: 1.125rem; margin-bottom: 8px;">${booth.name}</h3>
-              <p style="margin-bottom: 8px;">${booth.available_bikes} bikes available</p>
-            </div>
-          `);
-
-        marker.on('click', () => {
-          onSelectBooth(booth);
-        });
-      });
-
-      // Pan to selected booth
-      if (selectedBooth) {
-        map.setView([selectedBooth.latitude, selectedBooth.longitude], 15);
-      }
-    };
-
-    initMap();
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
     return () => {
-      if (mapRef.current) {
-        mapRef.current.innerHTML = '';
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
       }
     };
-  }, [booths, selectedBooth, onSelectBooth]);
+  }, []);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Clear existing markers
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer instanceof L.Marker) {
+        mapInstanceRef.current?.removeLayer(layer);
+      }
+    });
+
+    // Add markers for each booth
+    booths.forEach((booth) => {
+      const marker = L.marker([booth.latitude, booth.longitude])
+        .addTo(mapInstanceRef.current!)
+        .bindPopup(`
+          <div style="min-width: 200px;">
+            <h3 style="font-weight: 600; font-size: 1.125rem; margin-bottom: 8px;">${booth.name}</h3>
+            <p style="margin-bottom: 8px;">${booth.available_bikes} bikes available</p>
+          </div>
+        `);
+
+      marker.on('click', () => {
+        onSelectBooth(booth);
+      });
+    });
+  }, [booths, onSelectBooth]);
+
+  useEffect(() => {
+    if (mapInstanceRef.current && selectedBooth) {
+      mapInstanceRef.current.setView([selectedBooth.latitude, selectedBooth.longitude], 15);
+    }
+  }, [selectedBooth]);
 
   return (
     <div className="relative w-full h-full">
