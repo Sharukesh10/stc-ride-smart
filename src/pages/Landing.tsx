@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bike, MapPin, Shield, Zap } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 const Landing = () => {
   return (
@@ -54,47 +55,59 @@ const Landing = () => {
             How It Works
           </h2>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="flex flex-col items-center text-center space-y-4 p-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <MapPin className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Find a Booth</h3>
-              <p className="text-muted-foreground">
-                Locate nearby STC booths on the map
-              </p>
-            </div>
+          <Carousel className="w-full max-w-5xl mx-auto">
+            <CarouselContent>
+              <CarouselItem className="md:basis-1/2 lg:basis-1/4">
+                <div className="flex flex-col items-center text-center space-y-4 p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <MapPin className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Find a Booth</h3>
+                  <p className="text-muted-foreground">
+                    Locate nearby STC booths on the map
+                  </p>
+                </div>
+              </CarouselItem>
 
-            <div className="flex flex-col items-center text-center space-y-4 p-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Zap className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Quick Payment</h3>
-              <p className="text-muted-foreground">
-                Choose a plan and pay instantly
-              </p>
-            </div>
+              <CarouselItem className="md:basis-1/2 lg:basis-1/4">
+                <div className="flex flex-col items-center text-center space-y-4 p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Zap className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Quick Payment</h3>
+                  <p className="text-muted-foreground">
+                    Choose a plan and pay instantly
+                  </p>
+                </div>
+              </CarouselItem>
 
-            <div className="flex flex-col items-center text-center space-y-4 p-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bike className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Scan & Unlock</h3>
-              <p className="text-muted-foreground">
-                Scan QR code to unlock your ride
-              </p>
-            </div>
+              <CarouselItem className="md:basis-1/2 lg:basis-1/4">
+                <div className="flex flex-col items-center text-center space-y-4 p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bike className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Scan & Unlock</h3>
+                  <p className="text-muted-foreground">
+                    Scan QR code to unlock your ride
+                  </p>
+                </div>
+              </CarouselItem>
 
-            <div className="flex flex-col items-center text-center space-y-4 p-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Shield className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Park Safely</h3>
-              <p className="text-muted-foreground">
-                Return to any booth and lock securely
-              </p>
-            </div>
-          </div>
+              <CarouselItem className="md:basis-1/2 lg:basis-1/4">
+                <div className="flex flex-col items-center text-center space-y-4 p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Park Safely</h3>
+                  <p className="text-muted-foreground">
+                    Return to any booth and lock securely
+                  </p>
+                </div>
+              </CarouselItem>
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
         </div>
       </section>
 
